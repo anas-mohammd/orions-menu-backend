@@ -9,7 +9,7 @@
 set -euo pipefail
 
 DOMAIN="api.orionsmenu.com"
-EMAIL="${1:-}"          # Your email for Let's Encrypt alerts
+EMAIL="${1:-}"
 COMPOSE="docker compose"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -25,6 +25,13 @@ $COMPOSE version &>/dev/null  || err "Docker Compose plugin not found."
 if [ -z "$EMAIL" ]; then
   err "Usage: ./deploy.sh <your-email>\n  Example: ./deploy.sh admin@orionsmenu.com"
 fi
+
+# ── Export vars from .env.production so Docker Compose can substitute them ───
+# (env_file only injects into containers, not into compose variable substitution)
+set -a
+# shellcheck disable=SC1091
+source .env.production
+set +a
 
 info "Deploying OrionMenu backend to: https://$DOMAIN"
 
@@ -52,7 +59,9 @@ sleep 3
 
 # ── Step 2: Obtain SSL certificate ───────────────────────────────────────────
 info "Requesting SSL certificate from Let's Encrypt..."
-$COMPOSE run --rm certbot certbot certonly \
+
+# Use --entrypoint to override the certbot container's default loop entrypoint
+$COMPOSE run --rm --entrypoint certbot certbot certonly \
   --webroot \
   --webroot-path=/var/www/certbot \
   --email "$EMAIL" \
@@ -64,7 +73,6 @@ ok "SSL certificate obtained successfully."
 
 # ── Step 3: Restore full nginx config with SSL ───────────────────────────────
 info "Applying full Nginx config with HTTPS..."
-cp nginx/conf.d/orionmenu.conf.ssl nginx/conf.d/orionmenu.conf 2>/dev/null || \
 cat > nginx/conf.d/orionmenu.conf <<NGINXEOF
 server {
     listen 80;
@@ -153,9 +161,9 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  ✅  Deployment Complete!"
 echo ""
-echo "  🌐  API:   https://api.orionsmenu.com"
-echo "  📖  Docs:  https://api.orionsmenu.com/docs"
-echo "  ❤️   Health: https://api.orionsmenu.com/health"
+echo "  🌐  API:     https://api.orionsmenu.com"
+echo "  📖  Docs:    https://api.orionsmenu.com/docs"
+echo "  ❤️   Health:  https://api.orionsmenu.com/health"
 echo ""
 echo "  Useful commands:"
 echo "    make logs svc=api     → tail API logs"
