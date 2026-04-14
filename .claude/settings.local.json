@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(MONGODB_URL=mongodb://localhost:27017 MONGODB_DB_NAME=saas_menu REDIS_URL=redis://localhost:6379 SECRET_KEY=test python:*)"
+    ]
+  }
+}
