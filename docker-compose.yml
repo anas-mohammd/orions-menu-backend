@@ -25,6 +25,8 @@ services:
     image: mongo:7
     container_name: orionmenu_mongo
     restart: unless-stopped
+    env_file:
+      - .env.production
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-mongoadmin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
@@ -47,6 +49,8 @@ services:
     image: redis:7-alpine
     container_name: orionmenu_redis
     restart: unless-stopped
+    env_file:
+      - .env.production
     # Persistence: snapshot every 60s if ≥1 key changed + AOF for durability
     command: >
       redis-server
