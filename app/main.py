@@ -118,7 +118,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 _extra_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
-_origins = ["http://localhost:3000", "http://localhost:3001"] + _extra_origins
+_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://api.orionsmenu.com",
+    "https://orionsmenu.com",
+    "https://www.orionsmenu.com",
+] + _extra_origins
 
 app.add_middleware(
     CORSMiddleware,

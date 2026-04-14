@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────────────────────
 # OrionMenu — VPS Deployment Script
-# Run on the VPS after cloning the repo:
-#   chmod +x deploy.sh && ./deploy.sh
+# Domain: api.orionsmenu.com
+#
+# Run on the VPS:
+#   chmod +x deploy.sh && ./deploy.sh your@email.com
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-DOMAIN="${1:-}"          # First arg: your domain, e.g. api.orionmenu.com
-EMAIL="${2:-}"           # Second arg: email for Let's Encrypt alerts
+DOMAIN="api.orionsmenu.com"
+EMAIL="${1:-}"          # Your email for Let's Encrypt alerts
 COMPOSE="docker compose"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -16,23 +18,20 @@ ok()    { echo -e "\033[0;32m[OK]\033[0m    $*"; }
 err()   { echo -e "\033[0;31m[ERROR]\033[0m $*" >&2; exit 1; }
 
 # ── Preflight checks ─────────────────────────────────────────────────────────
-[ -f ".env.production" ] || err ".env.production not found. Copy and fill it before deploying."
+[ -f ".env.production" ] || err ".env.production not found — fill it before deploying."
 command -v docker &>/dev/null || err "Docker is not installed."
 $COMPOSE version &>/dev/null  || err "Docker Compose plugin not found."
 
-if [ -z "$DOMAIN" ] || [ -z "$EMAIL" ]; then
-  err "Usage: ./deploy.sh <domain> <email>\n  Example: ./deploy.sh api.orionmenu.com admin@orionmenu.com"
+if [ -z "$EMAIL" ]; then
+  err "Usage: ./deploy.sh <your-email>\n  Example: ./deploy.sh admin@orionsmenu.com"
 fi
 
-# ── Replace placeholder domain in nginx config ───────────────────────────────
-info "Configuring Nginx for domain: $DOMAIN"
-sed -i "s/YOUR_DOMAIN/$DOMAIN/g" nginx/conf.d/orionmenu.conf
+info "Deploying OrionMenu backend to: https://$DOMAIN"
 
-# ── Step 1: Start with HTTP-only nginx for certbot challenge ─────────────────
-info "Starting services (HTTP only for initial SSL setup)..."
+# ── Step 1: HTTP-only nginx for certbot challenge ─────────────────────────────
+info "Starting Nginx (HTTP only) for SSL certificate challenge..."
 
-# Temporarily use a minimal nginx config that only serves the certbot challenge
-cat > nginx/conf.d/orionmenu.conf.tmp <<EOF
+cat > /tmp/bootstrap.conf <<NGINXEOF
 server {
     listen 80;
     server_name $DOMAIN;
@@ -40,17 +39,19 @@ server {
         root /var/www/certbot;
     }
     location / {
-        return 200 "OrionMenu — awaiting SSL setup";
+        return 200 "OrionMenu — SSL setup in progress";
         add_header Content-Type text/plain;
     }
 }
-EOF
-mv nginx/conf.d/orionmenu.conf.tmp nginx/conf.d/orionmenu.conf.bootstrap 2>/dev/null || true
+NGINXEOF
+
+cp /tmp/bootstrap.conf nginx/conf.d/orionmenu.conf
 
 $COMPOSE up -d nginx certbot mongodb redis
+sleep 3
 
 # ── Step 2: Obtain SSL certificate ───────────────────────────────────────────
-info "Obtaining SSL certificate for $DOMAIN..."
+info "Requesting SSL certificate from Let's Encrypt..."
 $COMPOSE run --rm certbot certbot certonly \
   --webroot \
   --webroot-path=/var/www/certbot \
@@ -59,42 +60,106 @@ $COMPOSE run --rm certbot certbot certonly \
   --no-eff-email \
   -d "$DOMAIN"
 
-ok "SSL certificate obtained."
+ok "SSL certificate obtained successfully."
 
-# ── Step 3: Write full nginx config with SSL ──────────────────────────────────
-info "Writing full Nginx config with SSL..."
-sed "s/YOUR_DOMAIN/$DOMAIN/g" nginx/conf.d/orionmenu.conf > nginx/conf.d/orionmenu.conf
-# Remove bootstrap config if it exists
-rm -f nginx/conf.d/orionmenu.conf.bootstrap
+# ── Step 3: Restore full nginx config with SSL ───────────────────────────────
+info "Applying full Nginx config with HTTPS..."
+cp nginx/conf.d/orionmenu.conf.ssl nginx/conf.d/orionmenu.conf 2>/dev/null || \
+cat > nginx/conf.d/orionmenu.conf <<NGINXEOF
+server {
+    listen 80;
+    server_name $DOMAIN;
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
+}
 
-# ── Step 4: Build and start all services ─────────────────────────────────────
-info "Building API image..."
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name $DOMAIN;
+
+    ssl_certificate     /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    add_header X-Frame-Options           "SAMEORIGIN"  always;
+    add_header X-Content-Type-Options    "nosniff"     always;
+    add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+
+    client_max_body_size 10M;
+
+    location /uploads/ {
+        alias /var/www/uploads/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+        try_files \$uri =404;
+    }
+
+    location / {
+        proxy_pass         http://api:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host              \$host;
+        proxy_set_header X-Real-IP         \$remote_addr;
+        proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade           \$http_upgrade;
+        proxy_set_header Connection        "upgrade";
+        proxy_read_timeout    60s;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout    60s;
+    }
+}
+NGINXEOF
+
+# ── Step 4: Build API image and start all services ───────────────────────────
+info "Building API Docker image..."
 $COMPOSE build --no-cache api
 
 info "Starting all services..."
 $COMPOSE up -d
 
-ok "All services started."
+ok "All containers are up."
 
-# ── Step 5: Seed the database ─────────────────────────────────────────────────
-info "Seeding database (admin + demo owner)..."
-$COMPOSE exec api python scripts/seed.py || true
+# ── Step 5: Reload Nginx with the HTTPS config ───────────────────────────────
+$COMPOSE exec nginx nginx -s reload
 
-# ── Step 6: Health check ──────────────────────────────────────────────────────
-info "Running health check..."
+# ── Step 6: Seed the database ─────────────────────────────────────────────────
+info "Seeding database (admin + demo owner accounts)..."
 sleep 5
+$COMPOSE exec api python scripts/seed.py || info "Seed already applied or skipped."
+
+# ── Step 7: Health check ──────────────────────────────────────────────────────
+info "Running health check..."
+sleep 3
 HTTP_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/health" || echo "000")
 
 if [ "$HTTP_STATUS" = "200" ]; then
-  ok "Health check passed — API is live at https://$DOMAIN"
+  ok "Health check passed!"
 else
-  err "Health check failed (HTTP $HTTP_STATUS). Check logs: docker compose logs api"
+  err "Health check returned HTTP $HTTP_STATUS. Run: docker compose logs api"
 fi
 
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Deployment complete!"
-echo "  API:     https://$DOMAIN"
-echo "  Docs:    https://$DOMAIN/docs"
-echo "  Logs:    docker compose logs -f api"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  ✅  Deployment Complete!"
+echo ""
+echo "  🌐  API:   https://api.orionsmenu.com"
+echo "  📖  Docs:  https://api.orionsmenu.com/docs"
+echo "  ❤️   Health: https://api.orionsmenu.com/health"
+echo ""
+echo "  Useful commands:"
+echo "    make logs svc=api     → tail API logs"
+echo "    make seed             → re-run seed"
+echo "    make backup           → backup MongoDB"
+echo "    make ssl-renew        → force SSL renewal"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
