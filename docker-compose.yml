@@ -52,19 +52,13 @@ services:
     env_file:
       - .env.production
     # Persistence: snapshot every 60s if ≥1 key changed + AOF for durability
-    command: >
-      redis-server
-      --save 60 1
-      --appendonly yes
-      --appendfsync everysec
-      --requirepass ${REDIS_PASSWORD}
-      --loglevel warning
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "yes", "--appendfsync", "everysec", "--requirepass", "${REDIS_PASSWORD}", "--loglevel", "warning"]
     volumes:
       - redis_data:/data
     expose:
       - "6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping", "--no-auth-warning"]
       interval: 10s
       timeout: 5s
       retries: 5
