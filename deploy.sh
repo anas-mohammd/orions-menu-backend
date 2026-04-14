@@ -26,13 +26,11 @@ if [ -z "$EMAIL" ]; then
   err "Usage: ./deploy.sh <your-email>\n  Example: ./deploy.sh admin@orionsmenu.com"
 fi
 
-# ── Export vars from .env.production for Docker Compose substitution ─────────
-# Strip \r (Windows CRLF), skip comments and blank lines, then export
-set -a
-# shellcheck disable=SC1090
-source <(tr -d '\r' < .env.production | grep -v '^\s*#' | grep -v '^\s*$')
-set +a
-ok "Environment loaded from .env.production"
+# ── Create .env so Docker Compose can resolve ${VAR} substitutions ────────────
+# Docker Compose reads .env automatically for variable substitution.
+# env_file only injects vars INTO containers, not for compose-level ${VAR}.
+tr -d '\r' < .env.production > .env
+ok "Environment loaded (.env created from .env.production)"
 
 info "Deploying OrionMenu backend to: https://$DOMAIN"
 
