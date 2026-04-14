@@ -26,12 +26,13 @@ if [ -z "$EMAIL" ]; then
   err "Usage: ./deploy.sh <your-email>\n  Example: ./deploy.sh admin@orionsmenu.com"
 fi
 
-# ── Export vars from .env.production so Docker Compose can substitute them ───
-# (env_file only injects into containers, not into compose variable substitution)
+# ── Export vars from .env.production for Docker Compose substitution ─────────
+# Strip \r (Windows CRLF), skip comments and blank lines, then export
 set -a
-# shellcheck disable=SC1091
-source .env.production
+# shellcheck disable=SC1090
+source <(tr -d '\r' < .env.production | grep -v '^\s*#' | grep -v '^\s*$')
 set +a
+ok "Environment loaded from .env.production"
 
 info "Deploying OrionMenu backend to: https://$DOMAIN"
 
@@ -55,23 +56,27 @@ NGINXEOF
 cp /tmp/bootstrap.conf nginx/conf.d/orionmenu.conf
 
 $COMPOSE up -d nginx certbot mongodb redis
-sleep 3
+sleep 5
 
-# ── Step 2: Obtain SSL certificate ───────────────────────────────────────────
+# ── Step 2: Obtain SSL certificate (using docker run directly) ────────────────
 info "Requesting SSL certificate from Let's Encrypt..."
 
-# Use --entrypoint to override the certbot container's default loop entrypoint
-$COMPOSE run --rm --entrypoint certbot certbot certonly \
-  --webroot \
-  --webroot-path=/var/www/certbot \
-  --email "$EMAIL" \
-  --agree-tos \
-  --no-eff-email \
-  -d "$DOMAIN"
+# Use docker run directly to avoid docker-compose entrypoint override issues
+docker run --rm \
+  --network orions-menu-backend_internal \
+  -v orions-menu-backend_certbot_www:/var/www/certbot \
+  -v orions-menu-backend_certbot_certs:/etc/letsencrypt \
+  certbot/certbot certonly \
+    --webroot \
+    --webroot-path=/var/www/certbot \
+    --email "$EMAIL" \
+    --agree-tos \
+    --no-eff-email \
+    -d "$DOMAIN"
 
 ok "SSL certificate obtained successfully."
 
-# ── Step 3: Restore full nginx config with SSL ───────────────────────────────
+# ── Step 3: Write full nginx config with SSL ──────────────────────────────────
 info "Applying full Nginx config with HTTPS..."
 cat > nginx/conf.d/orionmenu.conf <<NGINXEOF
 server {
@@ -139,6 +144,7 @@ $COMPOSE up -d
 ok "All containers are up."
 
 # ── Step 5: Reload Nginx with the HTTPS config ───────────────────────────────
+sleep 3
 $COMPOSE exec nginx nginx -s reload
 
 # ── Step 6: Seed the database ─────────────────────────────────────────────────
