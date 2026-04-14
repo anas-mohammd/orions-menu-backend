@@ -27,10 +27,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env.production
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-mongoadmin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGODB_DB_NAME:-saas_menu}
     volumes:
       - mongo_data:/data/db
     # Port not exposed externally
