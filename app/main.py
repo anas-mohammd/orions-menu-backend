@@ -139,10 +139,11 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         elif err_type == "list_min_length":
             err["msg"] = f"يجب أن تحتوي القائمة على {ctx.get('min_length', '')} عنصر على الأقل"
         elif err_type == "value_error":
-            # رسائل model_validator — مكتوبة بالعربي مباشرة
-            err["msg"] = msg.removeprefix("Value error, ")
-        elif "email" in err_type or "email" in msg.lower():
-            err["msg"] = "البريد الإلكتروني غير صحيح"
+            if "email" in msg.lower():
+                err["msg"] = "البريد الإلكتروني غير صحيح"
+            else:
+                # رسائل model_validator — مكتوبة بالعربي مباشرة
+                err["msg"] = msg.removeprefix("Value error, ")
         else:
             err["msg"] = "القيمة المدخلة غير صحيحة"
 
