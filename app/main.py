@@ -1,4 +1,3 @@
-import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -117,18 +116,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"detail": translated_errors},
     )
 
-_extra_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
-_origins = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "https://api.orionsmenu.com",
-    "https://orionsmenu.com",
-    "https://www.orionsmenu.com",
-] + _extra_origins
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_origins,
+    allow_origin_regex=r"https?://(localhost(:\d+)?|([a-zA-Z0-9-]+\.)*orionsmenu\.com)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
