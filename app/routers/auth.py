@@ -115,14 +115,14 @@ async def register(
     if payload.role == UserRole.saas_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot register as saas_admin",
+            detail="لا يمكن التسجيل كمدير النظام",
         )
 
     existing = await db["users"].find_one({"email": payload.email})
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Email already registered",
+            detail="البريد الإلكتروني مسجل مسبقاً",
         )
 
     from datetime import datetime, timezone
@@ -162,7 +162,7 @@ async def login(
     if not doc or not verify_password(payload.password, doc["hashed_password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="البريد الإلكتروني أو كلمة المرور غير صحيحة",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -192,7 +192,7 @@ async def refresh(
 ) -> AccessTokenResponse:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid or expired refresh token",
+        detail="رمز التحديث غير صالح أو منتهي الصلاحية",
         headers={"WWW-Authenticate": "Bearer"},
     )
 

@@ -35,7 +35,7 @@ class PublicRestaurantInfo(BaseModel):
     whatsapp_number: str
     instagram_url: str | None = None
     phone_number: str | None = None
-    currency_code: str = "SAR"
+    currency_code: str = "IQD"
 
 
 class PublicMenuResponse(BaseModel):
@@ -78,15 +78,15 @@ async def _get_active_restaurant_or_error(db: AsyncIOMotorDatabase, slug: str) -
     """Fetch restaurant by slug, enforce is_active and subscription checks."""
     doc = await db["restaurants"].find_one({"slug": slug})
     if doc is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Restaurant not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="المطعم غير موجود")
 
     if not doc.get("is_active", False):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Restaurant not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="المطعم غير موجود")
 
     if doc.get("subscription_status") == SubscriptionStatus.expired.value:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="This restaurant's subscription has expired",
+            detail="انتهى اشتراك هذا المطعم",
         )
 
     # Lazily expire subscription if past the expiry date but status not updated yet
@@ -100,7 +100,7 @@ async def _get_active_restaurant_or_error(db: AsyncIOMotorDatabase, slug: str) -
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="This restaurant's subscription has expired",
+            detail="انتهى اشتراك هذا المطعم",
         )
 
     return doc
@@ -172,7 +172,7 @@ async def get_public_menu(
             whatsapp_number=restaurant_doc["whatsapp_number"],
             instagram_url=restaurant_doc.get("instagram_url"),
             phone_number=restaurant_doc.get("phone_number"),
-            currency_code=restaurant_doc.get("currency_code", "SAR"),
+            currency_code=restaurant_doc.get("currency_code", "IQD"),
         ),
         categories=[CategoryResponse(**category_from_doc(d)) for d in category_docs],
         items=[MenuItemResponse(**menu_item_from_doc(d)) for d in item_docs],
@@ -221,7 +221,7 @@ async def place_order(
         except Exception:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid item id: {entry.item_id}",
+                detail=f"معرف العنصر غير صالح: {entry.item_id}",
             )
 
         item_doc = await db["menu_items"].find_one({
@@ -232,7 +232,7 @@ async def place_order(
         if item_doc is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Item {entry.item_id} is not available",
+                detail=f"العنصر {entry.item_id} غير متاح حالياً",
             )
 
         variants = item_doc.get("variants", [])
@@ -242,7 +242,7 @@ async def place_order(
             if variant is None:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Variant '{entry.variant_name}' not found for item {entry.item_id}",
+                    detail=f"الخيار '{entry.variant_name}' غير موجود لهذا العنصر",
                 )
             price = Decimal(str(variant["price"]))
         elif variants and not entry.variant_name:
@@ -307,7 +307,7 @@ async def place_order(
         items=order_items,
         total=total,
         notes=payload.notes,
-        currency_code=restaurant_doc.get("currency_code", "SAR"),
+        currency_code=restaurant_doc.get("currency_code", "IQD"),
         discount_amount=discount_amount,
         delivery_info=restaurant_doc.get("delivery_info"),
     )

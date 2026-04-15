@@ -68,21 +68,21 @@ async def _get_restaurant_or_404(
         try:
             oid = ObjectId(restaurant_id)
         except Exception:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Restaurant not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="المطعم غير موجود")
         doc = await db["restaurants"].find_one(
             {"_id": oid, "owner_ids": owner_id}, {"_id": 1, "slug": 1}
         )
         if doc is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Restaurant not found or access denied",
+                detail="المطعم غير موجود أو ليس لديك صلاحية",
             )
     else:
         doc = await db["restaurants"].find_one({"owner_ids": owner_id}, {"_id": 1, "slug": 1})
         if doc is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="No restaurant found for this account",
+                detail="لا يوجد مطعم مرتبط بهذا الحساب",
             )
     return str(doc["_id"]), doc["slug"]
 
@@ -94,11 +94,11 @@ async def _get_category_or_404(
     try:
         oid = ObjectId(category_id)
     except Exception:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="الفئة غير موجودة")
 
     doc = await db["categories"].find_one({"_id": oid, "restaurant_id": restaurant_id})
     if doc is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="الفئة غير موجودة")
     return doc
 
 
@@ -109,11 +109,11 @@ async def _get_item_or_404(
     try:
         oid = ObjectId(item_id)
     except Exception:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="العنصر غير موجود")
 
     doc = await db["menu_items"].find_one({"_id": oid, "restaurant_id": restaurant_id})
     if doc is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="العنصر غير موجود")
     return doc
 
 
@@ -178,7 +178,7 @@ async def reorder_categories(
         except Exception:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid category id: {entry.id}",
+                detail=f"معرف الفئة غير صالح: {entry.id}",
             )
         await db["categories"].update_one(
             {"_id": oid, "restaurant_id": restaurant_id},
@@ -205,7 +205,7 @@ async def update_category(
     if not updates:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No fields provided to update",
+            detail="لم يتم تحديد أي حقل للتعديل",
         )
 
     await db["categories"].update_one({"_id": doc["_id"]}, {"$set": updates})
@@ -231,7 +231,7 @@ async def delete_category(
     if items_count > 0:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Cannot delete category: {items_count} item(s) still linked to it",
+            detail=f"لا يمكن حذف الفئة: يوجد {items_count} عنصر مرتبط بها",
         )
 
     await db["categories"].delete_one({"_id": doc["_id"]})
@@ -311,7 +311,7 @@ async def update_item(
     if not updates:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No fields provided to update",
+            detail="لم يتم تحديد أي حقل للتعديل",
         )
 
     # Convert Decimal to float so BSON can encode it

@@ -6,25 +6,10 @@ from app.models.order import OrderItem
 
 _SEP = "━━━━━━━━━━━━━━━"
 
-# ISO 4217 → display symbol
+# العملات المدعومة
 CURRENCY_SYMBOLS: dict[str, str] = {
-    "SAR": "ر.س",
-    "AED": "د.إ",
-    "KWD": "د.ك",
-    "BHD": "د.ب",
-    "QAR": "ر.ق",
-    "OMR": "ر.ع",
-    "EGP": "ج.م",
-    "JOD": "د.أ",
     "IQD": "د.ع",
-    "LYD": "د.ل",
-    "MAD": "د.م",
-    "TND": "د.ت",
-    "DZD": "د.ج",
     "USD": "$",
-    "EUR": "€",
-    "GBP": "£",
-    "TRY": "₺",
 }
 
 
@@ -39,7 +24,7 @@ def _build_message(
     items: list[OrderItem],
     total: Decimal,
     notes: str | None,
-    currency_symbol: str = "ر.س",
+    currency_symbol: str = "د.ع",
     discount_amount: Decimal = Decimal("0"),
     delivery_info: dict[str, Any] | None = None,
 ) -> str:
@@ -92,7 +77,7 @@ def generate_whatsapp_link(
     items: list[OrderItem],
     total: Decimal,
     notes: str | None = None,
-    currency_code: str = "SAR",
+    currency_code: str = "IQD",
     discount_amount: Decimal = Decimal("0"),
     delivery_info: dict[str, Any] | None = None,
 ) -> str:

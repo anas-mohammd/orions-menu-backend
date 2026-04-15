@@ -36,21 +36,21 @@ async def _get_restaurant_or_404(
         try:
             oid = _ObjId(restaurant_id)
         except Exception:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Restaurant not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="المطعم غير موجود")
         doc = await db["restaurants"].find_one(
             {"_id": oid, "owner_ids": owner_id}, {"_id": 1, "slug": 1}
         )
         if doc is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Restaurant not found or access denied",
+                detail="المطعم غير موجود أو ليس لديك صلاحية",
             )
     else:
         doc = await db["restaurants"].find_one({"owner_ids": owner_id}, {"_id": 1, "slug": 1})
         if doc is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="No restaurant found for this account",
+                detail="لا يوجد مطعم مرتبط بهذا الحساب",
             )
     return str(doc["_id"]), doc["slug"]
 
@@ -61,11 +61,11 @@ async def _get_offer_or_404(
     try:
         oid = ObjectId(offer_id)
     except Exception:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Offer not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="العرض غير موجود")
 
     doc = await db["offers"].find_one({"_id": oid, "restaurant_id": restaurant_id})
     if doc is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Offer not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="العرض غير موجود")
     return doc
 
 
@@ -105,7 +105,7 @@ async def create_offer(
             except Exception:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Invalid item id: {item_id}",
+                    detail=f"معرف العنصر غير صالح: {item_id}",
                 )
             item = await db["menu_items"].find_one(
                 {"_id": oid, "restaurant_id": restaurant_id}, {"_id": 1}
@@ -113,7 +113,7 @@ async def create_offer(
             if item is None:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Menu item {item_id} not found in your restaurant",
+                    detail=f"العنصر {item_id} غير موجود في مطعمك",
                 )
 
     doc = {
@@ -151,7 +151,7 @@ async def update_offer(
     if not updates:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No fields provided to update",
+            detail="لم يتم تحديد أي حقل للتعديل",
         )
 
     # Validate any new applicable_items belong to this restaurant
@@ -162,7 +162,7 @@ async def update_offer(
             except Exception:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Invalid item id: {item_id}",
+                    detail=f"معرف العنصر غير صالح: {item_id}",
                 )
             item = await db["menu_items"].find_one(
                 {"_id": oid, "restaurant_id": restaurant_id}, {"_id": 1}
@@ -170,7 +170,7 @@ async def update_offer(
             if item is None:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Menu item {item_id} not found in your restaurant",
+                    detail=f"العنصر {item_id} غير موجود في مطعمك",
                 )
 
     # Validate date ordering when either date is updated
@@ -179,7 +179,7 @@ async def update_offer(
     if start and end and end <= start:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="end_date must be after start_date",
+            detail="تاريخ الانتهاء يجب أن يكون بعد تاريخ البداية",
         )
 
     # Serialise enum to string and Decimal to float for storage

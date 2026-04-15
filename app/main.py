@@ -95,22 +95,59 @@ app = FastAPI(
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = exc.errors()
     translated_errors = []
-    
+
     for err in errors:
+        err_type = err.get("type", "")
+        ctx = err.get("ctx", {})
         msg = err.get("msg", "")
-        # ترجمة الأخطاء الشائعة للعربية
-        if "String should have at least" in msg:
-            min_len = err.get("ctx", {}).get("min_length", "")
-            err["msg"] = f"يجب أن يتكون من {min_len} أحرف/أرقام على الأقل"
-        elif msg == "Field required":
+
+        if err_type == "missing":
             err["msg"] = "هذا الحقل مطلوب"
-        elif "value is not a valid" in msg.lower():
-            err["msg"] = "القيمة المدخلة غير صحيحة"
-        elif "value is not a valid email" in msg.lower():
+        elif err_type == "string_too_short":
+            err["msg"] = f"يجب أن يتكون من {ctx.get('min_length', '')} أحرف على الأقل"
+        elif err_type == "string_too_long":
+            err["msg"] = f"يجب أن لا يتجاوز {ctx.get('max_length', '')} حرفاً"
+        elif err_type == "greater_than":
+            err["msg"] = f"يجب أن يكون أكبر من {ctx.get('gt', '')}"
+        elif err_type == "greater_than_equal":
+            err["msg"] = f"يجب أن يكون {ctx.get('ge', '')} أو أكثر"
+        elif err_type == "less_than_equal":
+            err["msg"] = f"يجب أن لا يتجاوز {ctx.get('le', '')}"
+        elif err_type == "less_than":
+            err["msg"] = f"يجب أن يكون أقل من {ctx.get('lt', '')}"
+        elif err_type == "decimal_max_places":
+            err["msg"] = f"يُسمح بـ {ctx.get('decimal_places', '')} خانات عشرية كحد أقصى"
+        elif err_type in ("int_parsing", "int_type"):
+            err["msg"] = "يجب أن يكون رقماً صحيحاً"
+        elif err_type in ("float_parsing", "float_type", "decimal_parsing", "decimal_type"):
+            err["msg"] = "يجب أن يكون رقماً"
+        elif err_type == "string_type":
+            err["msg"] = "يجب أن يكون نصاً"
+        elif err_type == "bool_type":
+            err["msg"] = "يجب أن تكون القيمة صح أو خطأ"
+        elif err_type == "literal_error":
+            expected = ctx.get("expected", "")
+            err["msg"] = f"القيمة يجب أن تكون إحدى: {expected}"
+        elif err_type == "enum":
+            err["msg"] = "القيمة المدخلة غير مدعومة"
+        elif err_type in ("datetime_type", "datetime_parsing", "datetime_from_date_parsing"):
+            err["msg"] = "تاريخ غير صالح، يرجى إدخال تاريخ صحيح"
+        elif err_type in ("url_type", "url_parsing", "url_scheme"):
+            err["msg"] = "الرابط غير صالح"
+        elif err_type in ("list_type",):
+            err["msg"] = "يجب أن يكون قائمة"
+        elif err_type == "list_min_length":
+            err["msg"] = f"يجب أن تحتوي القائمة على {ctx.get('min_length', '')} عنصر على الأقل"
+        elif err_type == "value_error":
+            # رسائل model_validator — مكتوبة بالعربي مباشرة
+            err["msg"] = msg.removeprefix("Value error, ")
+        elif "email" in err_type or "email" in msg.lower():
             err["msg"] = "البريد الإلكتروني غير صحيح"
-            
+        else:
+            err["msg"] = "القيمة المدخلة غير صحيحة"
+
         translated_errors.append(err)
-        
+
     return JSONResponse(
         status_code=422,
         content={"detail": translated_errors},

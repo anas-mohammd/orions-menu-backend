@@ -42,9 +42,9 @@ class OfferCreate(BaseModel):
     @model_validator(mode="after")
     def validate_dates_and_value(self) -> "OfferCreate":
         if self.end_date <= self.start_date:
-            raise ValueError("end_date must be after start_date")
+            raise ValueError("تاريخ الانتهاء يجب أن يكون بعد تاريخ البداية")
         if self.discount_type == OfferType.percentage and self.discount_value > 100:
-            raise ValueError("Percentage discount cannot exceed 100")
+            raise ValueError("نسبة الخصم لا يمكن أن تتجاوز 100%")
         return self
 
 

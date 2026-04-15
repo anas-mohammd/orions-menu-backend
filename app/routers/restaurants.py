@@ -46,19 +46,19 @@ async def _get_owner_restaurant_or_404(
         try:
             oid = ObjectId(restaurant_id)
         except Exception:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Restaurant not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="المطعم غير موجود")
         doc = await db["restaurants"].find_one({"_id": oid, "owner_ids": owner_id})
         if doc is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Restaurant not found or access denied",
+                detail="المطعم غير موجود أو ليس لديك صلاحية",
             )
     else:
         doc = await db["restaurants"].find_one({"owner_ids": owner_id})
         if doc is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="No restaurant found for this account",
+                detail="لا يوجد مطعم مرتبط بهذا الحساب",
             )
     return doc
 
@@ -146,7 +146,7 @@ async def update_my_restaurant(
     if not updates:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No fields provided to update",
+            detail="لم يتم تحديد أي حقل للتعديل",
         )
 
     await db["restaurants"].update_one({"_id": doc["_id"]}, {"$set": updates})
@@ -203,8 +203,8 @@ async def delete_review(
     try:
         oid = ObjectId(review_id)
     except Exception:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="التقييم غير موجود")
 
     result = await db["reviews"].delete_one({"_id": oid, "restaurant_id": rid})
     if result.deleted_count == 0:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="التقييم غير موجود")

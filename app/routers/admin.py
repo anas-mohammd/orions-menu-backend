@@ -72,11 +72,11 @@ async def _get_restaurant_doc_or_404(db: AsyncIOMotorDatabase, restaurant_id: st
     try:
         oid = ObjectId(restaurant_id)
     except Exception:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Restaurant not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="المطعم غير موجود")
 
     doc = await db["restaurants"].find_one({"_id": oid})
     if doc is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Restaurant not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="المطعم غير موجود")
     return doc
 
 
@@ -119,7 +119,7 @@ async def create_user(
 ) -> UserResponse:
     existing = await db["users"].find_one({"email": payload.email})
     if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="البريد الإلكتروني مسجل مسبقاً")
 
     doc = {
         "name": payload.name,
@@ -146,14 +146,14 @@ async def delete_user(
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> None:
     if user_id == _admin.id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete your own account")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="لا يمكنك حذف حسابك الخاص")
     try:
         oid = ObjectId(user_id)
     except Exception:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="المستخدم غير موجود")
     result = await db["users"].delete_one({"_id": oid})
     if result.deleted_count == 0:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="المستخدم غير موجود")
 
 
 @router.get(
@@ -212,10 +212,10 @@ async def create_restaurant(
         try:
             oid = ObjectId(oid_str)
         except Exception:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid owner_id: {oid_str}")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"معرف المالك غير صالح: {oid_str}")
         owner = await db["users"].find_one({"_id": oid})
         if owner is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Owner not found: {oid_str}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"المالك غير موجود: {oid_str}")
 
     base_slug = generate_slug(payload.name)
     slug = base_slug
@@ -276,10 +276,10 @@ async def update_restaurant_owners(
         try:
             oid = ObjectId(oid_str)
         except Exception:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid owner_id: {oid_str}")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"معرف المالك غير صالح: {oid_str}")
         owner = await db["users"].find_one({"_id": oid})
         if owner is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Owner not found: {oid_str}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"المالك غير موجود: {oid_str}")
 
     await db["restaurants"].update_one(
         {"_id": doc["_id"]},

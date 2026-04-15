@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -30,7 +30,7 @@ class Restaurant(BaseModel):
     whatsapp_number: str = Field(..., description="Restaurant WhatsApp number (E.164 without +)")
     instagram_url: str | None = Field(default=None, description="Instagram profile URL or username")
     phone_number: str | None = Field(default=None, description="Direct call phone number")
-    currency_code: str = Field(default="SAR", description="ISO 4217 currency code (e.g. SAR, AED, USD)")
+    currency_code: Literal["IQD", "USD"] = Field(default="IQD", description="رمز العملة: IQD (دينار عراقي) أو USD (دولار أمريكي)")
     owner_ids: list[str]
     subscription_start_date: datetime
     subscription_expires_at: datetime
@@ -84,7 +84,7 @@ class RestaurantUpdate(BaseModel):
     whatsapp_number: str | None = Field(default=None, min_length=7, max_length=20)
     instagram_url: str | None = Field(default=None, max_length=200, description="Instagram profile URL or username")
     phone_number: str | None = Field(default=None, max_length=20, description="Direct call phone number")
-    currency_code: str | None = Field(default=None, min_length=3, max_length=3, description="ISO 4217 currency code (e.g. SAR, AED, USD)")
+    currency_code: Literal["IQD", "USD"] | None = Field(default=None, description="رمز العملة: IQD (دينار عراقي) أو USD (دولار أمريكي)")
     delivery_info: DeliveryInfo | None = Field(default=None, description="Delivery configuration")
 
     model_config = ConfigDict(json_schema_extra={
