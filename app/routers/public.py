@@ -35,6 +35,7 @@ class PublicRestaurantInfo(BaseModel):
     whatsapp_number: str
     instagram_url: str | None = None
     phone_number: str | None = None
+    google_maps_url: str | None = None
     currency_code: str = "IQD"
 
 
@@ -172,6 +173,7 @@ async def get_public_menu(
             whatsapp_number=restaurant_doc["whatsapp_number"],
             instagram_url=restaurant_doc.get("instagram_url"),
             phone_number=restaurant_doc.get("phone_number"),
+            google_maps_url=restaurant_doc.get("google_maps_url"),
             currency_code=restaurant_doc.get("currency_code", "IQD"),
         ),
         categories=[CategoryResponse(**category_from_doc(d)) for d in category_docs],
@@ -310,6 +312,7 @@ async def place_order(
         currency_code=restaurant_doc.get("currency_code", "IQD"),
         discount_amount=discount_amount,
         delivery_info=restaurant_doc.get("delivery_info"),
+        nearest_location=payload.nearest_location,
     )
 
     # Persist the order
@@ -326,6 +329,7 @@ async def place_order(
             for item in order_items
         ],
         "notes": payload.notes,
+        "nearest_location": payload.nearest_location,
         "original_total": float(original_total),
         "discount_amount": float(discount_amount),
         "total": float(total),

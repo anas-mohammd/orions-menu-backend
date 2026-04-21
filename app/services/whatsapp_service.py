@@ -27,6 +27,7 @@ def _build_message(
     currency_symbol: str = "د.ع",
     discount_amount: Decimal = Decimal("0"),
     delivery_info: dict[str, Any] | None = None,
+    nearest_location: str | None = None,
 ) -> str:
     lines = [
         "👤 معلومات العميل:",
@@ -54,6 +55,12 @@ def _build_message(
 
     lines.append(f"الإجمالي النهائي: {total:.2f} {currency_symbol}")
 
+    if nearest_location:
+        lines.append("")
+        lines.append(_SEP)
+        lines.append("📍 أقرب مكان:")
+        lines.append(nearest_location)
+
     if notes:
         lines.append("")
         lines.append(_SEP)
@@ -80,6 +87,7 @@ def generate_whatsapp_link(
     currency_code: str = "IQD",
     discount_amount: Decimal = Decimal("0"),
     delivery_info: dict[str, Any] | None = None,
+    nearest_location: str | None = None,
 ) -> str:
     """Build a formatted order message and return a wa.me deep-link.
 
@@ -95,6 +103,6 @@ def generate_whatsapp_link(
         A fully encoded https://wa.me/{number}?text={message} URL.
     """
     symbol = CURRENCY_SYMBOLS.get(currency_code, currency_code)
-    message = _build_message(customer_name, customer_phone, items, total, notes, symbol, discount_amount, delivery_info)
+    message = _build_message(customer_name, customer_phone, items, total, notes, symbol, discount_amount, delivery_info, nearest_location)
     number = _clean_number(whatsapp_number)
     return f"https://wa.me/{number}?text={quote(message)}"

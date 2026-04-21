@@ -3,11 +3,19 @@
 
 COMPOSE = docker compose
 
-.PHONY: up down build restart logs seed backup shell-api shell-mongo
+.PHONY: up down build update restart logs seed backup shell-api shell-mongo
 
 ## Start all containers
 up:
 	$(COMPOSE) up -d
+
+## Safe update: rebuild + restart API only — DB and Redis are NEVER touched
+update:
+	git pull origin main
+	$(COMPOSE) build api
+	$(COMPOSE) up -d --no-deps api
+	docker image prune -f
+	$(COMPOSE) ps
 
 ## Stop all containers
 down:

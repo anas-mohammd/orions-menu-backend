@@ -30,6 +30,7 @@ class Restaurant(BaseModel):
     whatsapp_number: str = Field(..., description="Restaurant WhatsApp number (E.164 without +)")
     instagram_url: str | None = Field(default=None, description="Instagram profile URL or username")
     phone_number: str | None = Field(default=None, description="Direct call phone number")
+    google_maps_url: str | None = Field(default=None, description="Google Maps location link for the restaurant")
     currency_code: Literal["IQD", "USD"] = Field(default="IQD", description="رمز العملة: IQD (دينار عراقي) أو USD (دولار أمريكي)")
     owner_ids: list[str]
     subscription_start_date: datetime
@@ -84,6 +85,7 @@ class RestaurantUpdate(BaseModel):
     whatsapp_number: str | None = Field(default=None, min_length=7, max_length=20)
     instagram_url: str | None = Field(default=None, max_length=200, description="Instagram profile URL or username")
     phone_number: str | None = Field(default=None, max_length=20, description="Direct call phone number")
+    google_maps_url: str | None = Field(default=None, max_length=500, description="Google Maps location link for the restaurant")
     currency_code: Literal["IQD", "USD"] | None = Field(default=None, description="رمز العملة: IQD (دينار عراقي) أو USD (دولار أمريكي)")
     delivery_info: DeliveryInfo | None = Field(default=None, description="Delivery configuration")
 

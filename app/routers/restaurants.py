@@ -142,7 +142,7 @@ async def update_my_restaurant(
 ) -> Restaurant:
     doc = await _get_owner_restaurant_or_404(db, current_user.id, restaurant_id)
 
-    updates = payload.model_dump(exclude_none=True)
+    updates = payload.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

@@ -20,6 +20,7 @@ class OrderCreate(BaseModel):
     customer_phone: str = Field(..., min_length=7, max_length=20, description="Customer phone number")
     items: list[OrderItemRequest] = Field(..., min_length=1, description="At least one item required")
     notes: str | None = Field(default=None, max_length=500, description="Special instructions or allergy notes")
+    nearest_location: str | None = Field(default=None, max_length=300, description="Nearest landmark or location description provided by the customer")
 
     model_config = ConfigDict(json_schema_extra={
         "example": {
@@ -50,6 +51,7 @@ class OrderResponse(BaseModel):
     customer_phone: str
     items: list[OrderItem]
     notes: str | None = None
+    nearest_location: str | None = None
     total: Decimal
     whatsapp_link: str
     created_at: datetime

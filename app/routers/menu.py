@@ -201,7 +201,7 @@ async def update_category(
     restaurant_id, slug = await _get_restaurant_or_404(db, current_user.id, restaurant_id)
     doc = await _get_category_or_404(db, category_id, restaurant_id)
 
-    updates = payload.model_dump(exclude_none=True)
+    updates = payload.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
